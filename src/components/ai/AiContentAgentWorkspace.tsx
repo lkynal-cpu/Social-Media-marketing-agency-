@@ -40,13 +40,15 @@ export const AiContentAgentWorkspace: React.FC<AiContentAgentWorkspaceProps> = (
   const { currentUser, activeClient, securityContext, triggerRefresh } = useAuth();
 
   const [selectedTool, setSelectedTool] = useState<string>('generate_content_ideas');
-  const [selectedModel, setSelectedModel] = useState<'gemini-3.8-flash' | 'gemma-4'>('gemini-3.8-flash');
+  const [selectedModel, setSelectedModel] = useState<'gemini-3.8-flash' | 'gemma-4-26b-a4b-it'>('gemma-4-26b-a4b-it');
   const [isGuideOpen, setIsGuideOpen] = useState<boolean>(false);
   const [customPrompt, setCustomPrompt] = useState<string>('');
   const [targetPlatform, setTargetPlatform] = useState<SocialPlatformId>('instagram');
   const [loading, setLoading] = useState<boolean>(false);
   const [responseOutput, setResponseOutput] = useState<string | null>(null);
   const [toolExecutionData, setToolExecutionData] = useState<any>(null);
+  const [groundingSources, setGroundingSources] = useState<{ title?: string; uri?: string }[]>([]);
+  const [searchQueries, setSearchQueries] = useState<string[]>([]);
   const [draftSuccessNotice, setDraftSuccessNotice] = useState<string | null>(null);
 
   // If user is not CONTENT_MANAGER, render permission block
@@ -144,6 +146,8 @@ export const AiContentAgentWorkspace: React.FC<AiContentAgentWorkspaceProps> = (
 
       setResponseOutput(result.text);
       setToolExecutionData(result.toolResult);
+      setGroundingSources(result.groundingSources || []);
+      setSearchQueries(result.searchQueries || []);
     } catch (err: any) {
       setResponseOutput(`Agent Error: ${err.message}`);
     } finally {
@@ -239,15 +243,15 @@ export const AiContentAgentWorkspace: React.FC<AiContentAgentWorkspaceProps> = (
                   </button>
                   <button
                     type="button"
-                    onClick={() => setSelectedModel('gemma-4')}
+                    onClick={() => setSelectedModel('gemma-4-26b-a4b-it')}
                     className={`px-2.5 py-1 rounded-md transition-colors flex items-center gap-1 ${
-                      selectedModel === 'gemma-4'
+                      selectedModel === 'gemma-4-26b-a4b-it'
                         ? 'bg-indigo-600 text-white shadow-xs font-bold'
                         : 'text-neutral-500 hover:text-neutral-800 dark:hover:text-white'
                     }`}
                   >
-                    <span>Gemma 4</span>
-                    <span className="text-[9px] px-1 py-0.2 rounded bg-indigo-900/60 text-indigo-200 font-mono">Open</span>
+                    <span>Gemma 4 (26B)</span>
+                    <span className="text-[9px] px-1 py-0.2 rounded bg-indigo-900/60 text-indigo-200 font-mono">Agent</span>
                   </button>
                 </div>
               </div>
@@ -366,7 +370,7 @@ export const AiContentAgentWorkspace: React.FC<AiContentAgentWorkspaceProps> = (
                     Agent Generation Output
                   </span>
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
-                    {selectedModel === 'gemma-4' ? 'Gemma 4 (Open-Weights)' : 'Gemini 3.8 Flash'}
+                    {selectedModel.startsWith('gemma') ? 'Gemma 4 (26B IT)' : 'Gemini 3.8 Flash'}
                   </span>
                 </div>
                 {responseOutput && (
@@ -381,6 +385,44 @@ export const AiContentAgentWorkspace: React.FC<AiContentAgentWorkspaceProps> = (
                   <div className="p-4 rounded-xl bg-neutral-50 dark:bg-neutral-800/60 border border-neutral-200 dark:border-neutral-800 text-xs font-sans text-neutral-800 dark:text-neutral-200 leading-relaxed whitespace-pre-line">
                     {responseOutput}
                   </div>
+
+                  {/* Grounding & Verification Metadata */}
+                  {(searchQueries.length > 0 || groundingSources.length > 0) && (
+                    <div className="p-3.5 rounded-xl bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800/40 text-xs space-y-2">
+                      <div className="text-[11px] font-bold text-blue-900 dark:text-blue-300 flex items-center gap-1.5">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-blue-600" />
+                        <span>Google Search Grounding & Real-Time Sources Consulted</span>
+                      </div>
+                      {searchQueries.length > 0 && (
+                        <div className="flex flex-wrap items-center gap-1 text-[11px] text-neutral-600 dark:text-neutral-400">
+                          <span className="font-semibold">Search Queries:</span>
+                          {searchQueries.map((q, i) => (
+                            <span key={i} className="px-1.5 py-0.5 rounded bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-neutral-700 dark:text-neutral-300">
+                              "{q}"
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      {groundingSources.length > 0 && (
+                        <div className="space-y-1 pt-1">
+                          <span className="font-semibold text-neutral-600 dark:text-neutral-400 block text-[11px]">Citations:</span>
+                          <div className="flex flex-wrap gap-1.5">
+                            {groundingSources.map((s, i) => (
+                              <a
+                                key={i}
+                                href={s.uri}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-indigo-600 dark:text-indigo-400 hover:underline text-[10px]"
+                              >
+                                <span>{s.title}</span>
+                              </a>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {toolExecutionData && (
                     <div className="p-3.5 rounded-xl bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-200 dark:border-indigo-800/40">

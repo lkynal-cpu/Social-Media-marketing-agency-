@@ -10,7 +10,7 @@ export interface AgentExecutionRequest {
   userPrompt?: string;
   client: Client;
   user: User;
-  selectedModel?: 'gemini-3.8-flash' | 'gemma-4';
+  selectedModel?: 'gemini-3.8-flash' | 'gemma-4' | 'gemma-4-26b-a4b-it';
 }
 
 export interface AgentExecutionResponse {
@@ -19,6 +19,8 @@ export interface AgentExecutionResponse {
   toolCalled?: string;
   toolResult?: any;
   model?: string;
+  groundingSources?: { title?: string; uri?: string }[];
+  searchQueries?: string[];
 }
 
 export class AiAgentClient {

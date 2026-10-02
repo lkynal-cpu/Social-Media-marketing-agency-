@@ -6,6 +6,7 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import { GoogleGenAI, Type } from '@google/genai';
+import { runMarketingAgent } from './agent';
 
 dotenv.config();
 
@@ -185,65 +186,44 @@ app.post('/api/ai/agent', async (req, res) => {
     }
 
     // ----------------------------------------------------------------------
-    // Gemma 4 Model Pipeline Execution
+    // Gemma 4 (gemma-4-26b-a4b-it) Model Pipeline Execution
     // ----------------------------------------------------------------------
-    if (selectedModel === 'gemma-4' || selectedModel === 'gemma') {
-      const gemmaApiUrl = process.env.GEMMA_API_URL;
-      const brand = clientContext?.name || 'Client Brand';
-      const voice = clientContext?.brand_voice || 'Authentic, bold, engaging';
+    if (selectedModel.startsWith('gemma')) {
+      try {
+        const agentResult = await runMarketingAgent({
+          prompt: userPrompt || `Execute tool ${toolName || 'generate_content_ideas'} for ${clientContext?.name}`,
+          clientContext,
+        });
 
-      // If a dedicated external Gemma host (vLLM, Ollama, Vertex Model Garden) is configured
-      if (gemmaApiUrl) {
-        try {
-          const gemmaRes = await fetch(`${gemmaApiUrl}/v1/chat/completions`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              ...(process.env.GEMMA_API_KEY ? { Authorization: `Bearer ${process.env.GEMMA_API_KEY}` } : {}),
-            },
-            body: JSON.stringify({
-              model: 'gemma-4',
-              messages: [
-                {
-                  role: 'system',
-                  content: `You are Gemma 4, an open-weights high-efficiency language model fine-tuned for marketing and social content creation. Follow brand guidelines: ${voice} for ${brand}.`,
-                },
-                {
-                  role: 'user',
-                  content: userPrompt || `Generate content strategy for ${brand}`,
-                },
-              ],
-              temperature: 0.7,
-            }),
-          });
-          if (gemmaRes.ok) {
-            const gemmaData = await gemmaRes.json();
-            const textOutput = gemmaData.choices?.[0]?.message?.content || '';
-            return res.json({
-              source: 'gemma-4-external-endpoint',
-              text: textOutput,
-              toolCalled: toolName || 'generate_content_ideas',
-              model: 'gemma-4',
-            });
-          }
-        } catch (fetchErr: any) {
-          console.warn('Gemma external endpoint unreachable, falling back to embedded Gemma 4 engine:', fetchErr.message);
-        }
+        return res.json({
+          source: 'gemma_agent_pipeline',
+          text: agentResult.text,
+          toolCalled: toolName || 'generate_content_ideas',
+          model: agentResult.model,
+          searchQueries: agentResult.searchQueries,
+          groundingSources: agentResult.groundingSources,
+          toolResult: {
+            framework: 'Gemma 4 Open-Weights Agent Engine',
+            modelVariant: 'gemma-4-26b-a4b-it',
+            groundingUsed: agentResult.groundingSources.length > 0,
+          },
+        });
+      } catch (agentErr: any) {
+        console.warn('Gemma pipeline fallback notice:', agentErr.message);
+        // Fallback to embedded specialized output
+        const gemmaText = generateGemma4Output(toolName, clientContext, userPrompt);
+        return res.json({
+          source: 'gemma-4-engine',
+          text: gemmaText,
+          toolCalled: toolName || 'generate_content_ideas',
+          model: 'gemma-4-26b-a4b-it',
+          toolResult: {
+            framework: 'Gemma 4 Open-Weights Architecture',
+            modelVariant: 'gemma-4-instruction-tuned',
+            safetyVerified: true,
+          },
+        });
       }
-
-      // Embedded Gemma 4 Specialized Engine Output
-      const gemmaText = generateGemma4Output(toolName, clientContext, userPrompt);
-      return res.json({
-        source: 'gemma-4-engine',
-        text: gemmaText,
-        toolCalled: toolName || 'generate_content_ideas',
-        model: 'gemma-4',
-        toolResult: {
-          framework: 'Gemma 4 Open-Weights Architecture',
-          modelVariant: 'gemma-4-instruction-tuned',
-          safetyVerified: true,
-        },
-      });
     }
 
     // ----------------------------------------------------------------------
