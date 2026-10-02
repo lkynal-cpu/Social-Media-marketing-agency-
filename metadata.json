@@ -1,0 +1,8 @@
+{
+  "name": "OmniAgency OS - Multi-Tenant Agency Operating System",
+  "description": "Enterprise multi-tenant SaaS platform for social media marketing agencies managing customer accounts, AI content creation, SEO, campaigns, leads, sales, and analytics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
